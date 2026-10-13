@@ -8,6 +8,8 @@ Note: Yahoo Finance ka data ~15 min delayed ho sakta hai. Ye sirf jaankari ke li
 investment advice nahi.
 """
 import datetime as dt
+import hmac
+import time
 from zoneinfo import ZoneInfo
 
 import numpy as np
@@ -89,6 +91,46 @@ div[data-testid="stDataFrame"] {border-radius:14px; overflow:hidden; border:1px 
 .note {color:#6b7280; font-size:.75rem; margin-top:18px; text-align:center;}
 """
 st.markdown("<style>" + CSS + "</style>", unsafe_allow_html=True)
+
+
+# ----------------------------------------------------------------------------
+# Login gate (ID/password code me nahi, Streamlit Secrets me rehte hain)
+# ----------------------------------------------------------------------------
+def check_login():
+    try:
+        user_ok = str(st.secrets["auth"]["username"])
+        pass_ok = str(st.secrets["auth"]["password"])
+    except Exception:
+        st.error("Login set nahi hai. App Settings > Secrets me [auth] username aur password add karo.")
+        st.stop()
+
+    if st.session_state.get("authed"):
+        return
+
+    st.markdown('<div class="hero"><div><h1>🔐 Market Pulse</h1>'
+                '<small>Aage badhne ke liye login karo</small></div></div>', unsafe_allow_html=True)
+    _, mid, _ = st.columns([1, 1.3, 1])
+    with mid:
+        with st.form("login_form"):
+            u = st.text_input("Email / ID")
+            p = st.text_input("Password", type="password")
+            submitted = st.form_submit_button("Login")
+        if submitted:
+            ok_u = hmac.compare_digest(u.strip().lower().encode(), user_ok.strip().lower().encode())
+            ok_p = hmac.compare_digest(p.encode(), pass_ok.encode())
+            if ok_u and ok_p:
+                st.session_state["authed"] = True
+                st.rerun()
+            else:
+                time.sleep(1)
+                st.error("ID ya password galat hai.")
+    st.stop()
+
+
+check_login()
+if st.sidebar.button("🚪 Logout"):
+    st.session_state["authed"] = False
+    st.rerun()
 
 
 def card(label, value, sub="", cls="muted", extra=""):
